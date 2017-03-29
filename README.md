@@ -17,10 +17,10 @@ The goals / steps of this project are the following:
 
 Submission Files
 --- 
-* model.py (script used to create and train the model)
-* drive.py (script to drive the car - feel free to modify this file)
-* model.h5 (a trained Keras model)
-* a report writeup file (either markdown or pdf)
-* video.mp4 (a video recording of your vehicle driving autonomously around the track for at least one full lap)
+* [model.py](./model.py) - script used to create and train the model
+* [drive.py](./drive.py) - script to drive the car - feel free to modify this file
+* model.h5 - a trained Keras model
+* a [writeup_report.md](./writeup_report.md) - a final report of this project
+* video.mp4 - a video recording of my vehicle driving autonomously around the track for at least one full lap
 
 More instruction about this project, please visit [CarND-Behavioral-Cloning-P3](https://github.com/udacity/CarND-Behavioral-Cloning-P3) @github.com/udacity.
