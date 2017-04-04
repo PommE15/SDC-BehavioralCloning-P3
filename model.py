@@ -4,28 +4,38 @@ from keras.layers.convolutional import Cropping2D, Conv2D
 from keras.layers.pooling import MaxPooling2D
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
-#import sklearn
 import matplotlib.pyplot as plt
 import numpy as np
 import csv
 import cv2
-import os
+
+# Parameter Tuning
+TEST_RATE   = 0.2
+BATCH_SIZE  = 32
+CORRECTION  = 0.2
+CROP_TOP    = 66
+CROP_BOTTOM = 30 
+CONV_FDEPTH = 9
+CONV_FSIZE  = 5
+CONV_STRIDE = 2
+KEEP_RATE   = 0.9 
+EPOCH       = 5
 
 
-### Load Data and Images
+### Load Data and Image
 samples = []
 csv_file = './data/driving_log.csv'
 with open(csv_file) as f:
     reader = csv.reader(f)
-    # skip the headers
-    next(reader, None)  
+    next(reader, None) # skip the headers
     for line in reader:
         samples.append(line)
 
+# split into training and validation sets
+train_samples, validation_samples = train_test_split(samples, test_size=TEST_RATE)
 
-### Generator !? 
-train_samples, validation_samples = train_test_split(samples, test_size=0.2)
 
+### Generator 
 def generator(samples, batch_size=32):
     num_samples = len(samples)
     while 1: # Loop forever so the generator never terminates
@@ -36,98 +46,86 @@ def generator(samples, batch_size=32):
             images = []
             angles = []
             for batch_sample in batch_samples:
-                # Using multipule cameras
-                
-                # TODO: tune
-                correction = 0.1
                 
                 path = './data/'
-                image_center = cv2.imread(path + batch_sample[0])
-                image_left   = cv2.imread(path + batch_sample[1].strip())
-                image_right  = cv2.imread(path + batch_sample[2].strip())
-                angle_center = float(batch_sample[3])
-                angle_left   = angle_center + correction
-                angle_right  = angle_center - correction
                 
-                # Data Augmentation
+                ### BGR -> RGB / YUV
+                image_origin = cv2.imread(path + batch_sample[0])
+                image_center = cv2.cvtColor(np.copy(image_origin), cv2.COLOR_BGR2RGB) # / cv2.COLOR_BGR2YUV
+                angle_center = float(batch_sample[3])
+                
+                #### Data Augmentation: flip
+                image_flipped_center = np.fliplr(np.copy(image_center))
+                
+                ### Using multipule cameras
                 '''
-                #image_flipped = np.fliplr(image)
-                #measurement_flipped = -measurement
+                correction = CORRECTION
+                image_left  = cv2.imread(path + batch_sample[1].strip())
+                image_right = cv2.imread(path + batch_sample[2].strip())
+                angle_left  = angle_center + correction
+                angle_right = angle_center - correction
+                #image_flipped_left  = np.fliplr(image_left)  
+                #image_flipped_right = np.fliplr(image_right) 
                 '''
+ 
+                images.extend([image_center, image_flipped_center])#, image_left, image_right, image_flipped_left, image_flipped_right])
+                angles.extend([angle_center, -angle_center])#, angle_left, angle_right, -angle_left, -angle_right])
 
-                images.extend([image_center, image_left, image_right])
-                angles.extend([angle_center, angle_left, angle_right])
-
-            # trim image to only see section with road
             X_train = np.array(images)
             y_train = np.array(angles)
             yield shuffle(X_train, y_train)
 
 # compile and train the model using the generator function
-train_generator = generator(train_samples, batch_size=32)
-validation_generator = generator(validation_samples, batch_size=32)
+train_generator = generator(train_samples, batch_size=BATCH_SIZE)
+validation_generator = generator(validation_samples, batch_size=BATCH_SIZE)
 
 
-### Training: NVIDIA Architecture
-# ref: images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf                               
-
+### Training
 model = Sequential()
-# Preprocess incoming data, centered around zero with small standard deviation 
-# set up cropping2D layer
-model.add(Cropping2D(cropping=((70, 20), (0, 0)), input_shape=(160, 320, 3)))
 
-# RGB -> YUV
-# cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
-# ...
+# cropping
+model.add(Cropping2D(cropping=((CROP_TOP, CROP_BOTTOM), (0, 0)), input_shape=(160, 320, 3)))
 
-# set up lambda layer
-model.add(Lambda(lambda x: x/255 - 0.5 ))
+# lambda: zero-centered with small standard deviation 
+model.add(Lambda(lambda x: x/255 - 0.5))
 
+# conv with relu
+model.add(Conv2D(CONV_FDEPTH, CONV_FSIZE, CONV_FSIZE, subsample=(CONV_STRIDE, CONV_STRIDE), activation='relu'))
+#model.add(MaxPooling2D(pool_size=(2, 2)))
+#model.add(Dropout(KEEP_RATE))
+
+# fc / output
+model.add(Flatten())
+model.add(Dense(1))
+
+# NVIDIA Architecture
+# ref: images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf                               
+'''
 # conv
 model.add(Conv2D(24, 5, 5, subsample=(2, 2), activation='relu'))
-model.add(Conv2D(36, 5, 5, subsample=(2, 2), activation='relu'))
+model.add(Conv2D(32, 5, 5, subsample=(2, 2), activation='relu'))
 model.add(Conv2D(48, 5, 5, subsample=(2, 2), activation='relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.5))
-
-model.add(Conv2D(64, 5, 5, subsample=(0, 0), activation='relu'))
-model.add(Conv2D(64, 5, 5, subsample=(0, 0), activation='relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.5))
-
+model.add(Conv2D(64, 3, 3, activation='relu'))
+model.add(Conv2D(64, 3, 3, activation='relu'))
 # fc
-model.add(Flatten())
 model.add(Dense(100, activation="relu"))
 model.add(Dense(50, activation="relu"))
-model.add(Dense(10, activation="relu"))
-
-# output
-model.add(Dense(1, activation='sigmoid'))
-
-
-### Test and Evaluate !?
-model.compile(loss='mse', optimizer='adam')
-model.fit_generator(
-    train_generator, 
-    samples_per_epoch=len(train_samples), 
-    validation_data=validation_generator,
-    nb_val_samples=len(validation_samples), 
-    nb_epoch=1
-)
-
-# save model
-model.save('model.h5')
-
+model.add(Dense(3, activation="relu"))
 '''
+
+
+### Validate, Test, and Save Model
+model.compile(loss='mse', optimizer='adam')
+
 history_object = model.fit_generator(
     train_generator, 
     samples_per_epoch=len(train_samples), 
     validation_data=validation_generator,
     nb_val_samples=len(validation_samples), 
-    nb_epoch=5, 
-    verbose=1
+    nb_epoch=EPOCH,
+    #verbose= 1
 )
-
+'''
 # print the keys contained in the history object
 print(history_object.history.keys())
 
@@ -140,3 +138,18 @@ plt.xlabel('epoch')
 plt.legend(['training set', 'validation set'], loc='upper right')
 plt.show()
 '''
+
+model.save('model_candidate.h5') # model.h5
+print("model is saved")
+
+
+### Quick Evaluation
+image1 = cv2.cvtColor(cv2.imread('./data/IMG/center_2016_12_01_13_30_48_287.jpg'), cv2.COLOR_BGR2RGB)
+image2 = cv2.cvtColor(cv2.imread('./data/IMG/center_2016_12_01_13_46_29_398.jpg'), cv2.COLOR_BGR2RGB)
+image3 = cv2.cvtColor(cv2.imread('./data/IMG/center_2016_12_01_13_33_08_548.jpg'), cv2.COLOR_BGR2RGB)
+angle1 = float(model.predict(image1[None, :, :, :], batch_size=1))
+angle2 = float(model.predict(image2[None, :, :, :], batch_size=1))
+angle3 = float(model.predict(image3[None, :, :, :], batch_size=1))
+print("{:.6f} {:.6f}".format(angle1, 0))
+print("{:.6f} {:.6f}".format(angle2, -0.2971161))
+print("{:.6f} {:.6f}".format(angle3, 0.2148564))

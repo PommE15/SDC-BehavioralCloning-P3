@@ -3,14 +3,8 @@ This writeup is based on the [rubric points](https://review.udacity.com/#!/rubri
 this [template](https://github.com/udacity/CarND-Behavioral-Cloning-P3/blob/master/writeup_template.md).
 
 [//]: # (Image References)
-
-[image1]: ./examples/placeholder.png "Model Visualization"
-[image2]: ./examples/placeholder.png "Grayscaling"
-[image3]: ./examples/placeholder_small.png "Recovery Image"
-[image4]: ./examples/placeholder_small.png "Recovery Image"
-[image5]: ./examples/placeholder_small.png "Recovery Image"
-[image6]: ./examples/placeholder_small.png "Normal Image"
-[image7]: ./examples/placeholder_small.png "Flipped Image"
+[figure1]: ./assets/cropped2d.jpg ""
+[figure2]: ./assets/results.png ""
 
  
 ## Files Submitted & Code Quality
@@ -20,95 +14,101 @@ this [template](https://github.com/udacity/CarND-Behavioral-Cloning-P3/blob/mast
 My project includes the following files:
 * [model.py](./model.py) - containing the script to create and train the model
 * [drive.py](./drive.py) - for driving the car in autonomous mode
-* model.h5 - containing a trained convolution neural network 
+* [model.h5](./model.h5) - containing a trained convolution neural network 
 * [writeup_report.md](./writeup_report.md) - summarizing the results
+* [video.mp4](./video.mp4) - recording one lap of my vehicle driving autonomously on the track
 
 #### 2. Submission includes functional code
-Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
-```sh
+Using the Udacity provided simulator and the `drive.py` file, the car can be driven autonomously at speed of 16mph around the track one by executing 
+```
 python drive.py model.h5
 ```
 
 #### 3. Submission code is usable and readable
 
-The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model, and it contains comments to explain how the code works.
+The `model.py` file contains the code of my experiments, training, and saving the convolution neural network. The file shows the pipeline I used for training and validating the model, and it contains comments to explain how the code works.
 
 
-## Model Architecture and Training Strategy
-
-#### 1. An appropriate model architecture has been employed
-
-My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
-
-The model includes RELU layers to introduce nonlinearity (code line 20), and the data is normalized in the model using a Keras lambda layer (code line 18). 
-
-#### 2. Attempts to reduce overfitting in the model
-
-The model contains dropout layers in order to reduce overfitting (model.py lines 21). 
-
-The model was trained and validated on different data sets to ensure that the model was not overfitting (code line 10-16). The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
-
-#### 3. Model parameter tuning
-
-The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 25).
-
-#### 4. Appropriate training data
-
-Training data was chosen to keep the vehicle driving on the road. I used a combination of center lane driving, recovering from the left and right sides of the road ... 
-
-For details about how I created the training data, see the next section. 
-
-
-## Model Architecture and Training Strategy
+## Architecture and Training Documentation
 
 #### 1. Solution Design Approach
 
-The overall strategy for deriving a model architecture was to ...
+The overall strategy was to keep the model simple, make sure it's working, and then improve it.
 
-My first step was to use a convolution neural network model similar to the ... I thought this model might be appropriate because ...
+My first step was to: 
+* use only center images with steering data, 
+* apply normailzation and cropping on those images,
+* trian a simple one layer convolution neural network (cnn) for an epoche, and 
+* check if the model can predict the steering directions. 
 
-In order to gauge how well the model was working, I split my image and steering angle data into a training and validation set. I found that my first model had a low mean squared error on the training set but a high mean squared error on the validation set. This implied that the model was overfitting. 
+I assumed a one layer cnn model might work because the way how I cropped the images (see point 3 below) leaves them with simple geometry patterns for training. To see if this model is effective, I picked three images with straight, left, right steering each for a quick testing <sup>[2.11]</sup>.
 
-To combat the overfitting, I modified the model so that ...
+![alt text][figure2]
 
-Then I ... 
+The last three lines in the figure above output the predict results (first column) and the steering angles (second column) of the three images I picked. After training a model and testing it on the images, I checked if the numbers were properly prediected. For example, the second line shows the left steering image and it's expected to have a negative number. Compare with the other two images, the number is also expected to be larger than the other two. The straight steering image, on the other hand, is expected to be a number even closer to zero. If these basic checkings were passed, I ran the model in the simulator and see if the vehicle was able to drive autonomously around the track without leaving the road for at least a lap. 
 
-The final step was to run the simulator to see how well the car was driving around track one. There were a few spots where the vehicle fell off the track... to improve the driving behavior in these cases, I ....
+Once I have a working model, I experiemented with other additional steps:
+* add more data process we learned in the class, 
+* play with different cnn model (including NVIDIA Architecture <sup>[1]</sup>), and 
+* tune parameters (see point 5 below).
 
-At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road.
+In all steps, I kept an eye on the loss (mean squared error) on both training and validation set to monitor the overfitting. Among all the model modification and tuning, many works but a simple model stands out. 
 
-#### 2. Final Model Architecture
+#### 2. Model Architecture
 
-The final model architecture (model.py lines 18-24) consisted of a convolution neural network with the following layers and layer sizes ...
+My final model consists of:
 
-Here is a visualization of the architecture (note: visualizing the architecture is optional according to the project rubric)
+| `@model.py` | layers     | detail |
+|-------------|------------|--------|
+| `line 77`   | Cropping2D | 66px from top and 30px from bottom |
+| `line 80`   | Lambda     | zero-centered normailzation |
+| `line 83`   | Conv2D     | depth 9, filter sizes 5x5, stride of 2, and ReLU |
 
-![alt text][image1]
+The model includes a ReLU activation function in the Convolutional layer to introduce nonlinearity, and the data is also cropped and normalized in the model using Keras layers.
 
-#### 3. Creation of the Training Set & Training Process
+#### 3. Everything about data in this project
 
-To capture good driving behavior, I first recorded two laps on track one using center lane driving. Here is an example image of center lane driving:
+#### Training set:
+I used center images that provids in the class and flipped them (and their angles) in order to double the amount and create more samples for right turns. Eventually, I didn't choose to use images from left and right cameras as my experiments didn't show improvement by using them. 
 
-![alt text][image2]
+* source: center images
+* data augmentation: double samples with flipped center images
+* multiple cameras: add left and right (discarded)
 
-I then recorded the vehicle recovering from the left side and right sides of the road back to center so that the vehicle would learn to .... These images show what a recovery looks like starting from ... :
+After the collection process, I then preprocessed this data by converting it's color space.
 
-![alt text][image3]
-![alt text][image4]
-![alt text][image5]
+#### Data preprocess:
+* convert from BGR -> RGB <sup>[3.5]</sup>
+* corp (in Keras)
+* normalize (in Keras)
 
-Then I repeated this process on track two in order to get more data points.
+![alt text][figure1]
 
-To augment the data sat, I also flipped images and angles thinking that this would ... For example, here is an image that has then been flipped:
+The image was cropped 66px from the top and 30px from the bottom to keep just the area of the road.
 
-![alt text][image6]
-![alt text][image7]
+#### Training and validation sets
+* shuffle
+* 80/20 data split for training and validation sets `@model.py line 24`
 
-Etc ....
+Finally, I randomly shuffled the data set and put 20% of the data into a validation set. 
 
-After the collection process, I had X number of data points. I then preprocessed this data by ...
+#### 4. Attempts to reduce overfitting in the model
+
+The model was trained and validated on different data sets to ensure that the model was not overfitting. The ideal number of epochs was between 3 to 7 based on the results of my experiments. The validation set is then used to help determine if the model was over or under fitting. For example, the dropout layer was discared as the validation error indicated under fitting. 
+
+#### 5. Model parameter tuning
+
+* filter depths: 9, 12, 16, 24, 36 in the convolutional layer, 9 performs the best
+* epochs: between 3 to 7, 5 is better in avarage
+* optimizer: adam, learning rate was not tuned manually `@model.py line 108` 
 
 
-I finally randomly shuffled the data set and put Y% of the data into a validation set. 
+## Simulation Result
 
-I used this training data for training the model. The validation set helped determine if the model was over or under fitting. The ideal number of epochs was Z as evidenced by ... I used an adam optimizer so that manually training the learning rate wasn't necessary.
+In the simulation, the car is always driving autonomously on the road around track one up to 16mph. `video.mp4`
+
+
+## Reference
+1. [End to end learning for self-driving Cars](https://devblogs.nvidia.com/parallelforall/deep-learning-self-driving-cars), NVIDIA
+2. [Behavioral cloning cheatsheet](https://carnd-forums.udacity.com/questions/26214464/behavioral-cloning-cheatsheet)
+3. [Behavioral cloning non-spoiler hints](https://discussions.udacity.com/t/behavioral-cloning-non-spoiler-hints/233194)
