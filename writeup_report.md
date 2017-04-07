@@ -37,7 +37,7 @@ The overall strategy was to keep the model simple, make sure it's working, and t
 
 My first step was to: 
 * use only center images with steering data, 
-* apply normailzation and cropping on those images,
+* apply normailzation and crop those images,
 * trian a simple one layer convolution neural network (cnn) for an epoche, and 
 * check if the model can predict the steering directions. 
 
@@ -52,33 +52,33 @@ Once I have a working model, I experiemented with other additional steps:
 * play with different cnn model (including NVIDIA Architecture <sup>[1]</sup>), and 
 * tune parameters (see point 5 below).
 
-In all steps, I kept an eye on the loss (mean squared error) on both training and validation set to monitor the overfitting. Among all the model modification and tuning, many works but a simple model stands out. 
+In all steps, I kept an eye on the loss (mean squared error) on both training and validation sets to monitor the overfitting. Among all the model modifications and tunings, many works and a simple model stands out. 
 
 #### 2. Model Architecture
 
 My final model consists of:
 
-| `@model.py` | layers     | detail |
-|-------------|------------|--------|
-| `line 77`   | Cropping2D | 66px from top and 30px from bottom |
-| `line 80`   | Lambda     | zero-centered normailzation |
-| `line 83`   | Conv2D     | depth 9, filter sizes 5x5, stride of 2, and ReLU |
+| `model.py` | layers     | detail |
+|------------|------------|--------|
+| `line 87`  | Cropping2D | 66px from top and 30px from bottom |
+| `line 90`  | Lambda     | zero-centered normailzation |
+| `line 93`  | Conv2D     | depth 9, filter sizes 5x5, stride of 2, and ReLU |
 
-The model includes a ReLU activation function in the Convolutional layer to introduce nonlinearity, and the data is also cropped and normalized in the model using Keras layers.
+The model includes a ReLU activation function in the convolutional layer to introduce nonlinearity, and the data is also cropped and normalized in the model using Keras layers.
 
 #### 3. Everything about data in this project
 
 #### Training set:
 I used center images that provids in the class and flipped them (and their angles) in order to double the amount and create more samples for right turns. Eventually, I didn't choose to use images from left and right cameras as my experiments didn't show improvement by using them. 
 
-* source: center images
-* data augmentation: double samples with flipped center images
-* multiple cameras: add left and right (discarded)
+* source: center images `@model.py line 53`
+* data augmentation: double samples with flipped center images `@model.py line 58`
+* multiple cameras: add left and right (discarded) `@model.py line 60-69`
 
 After the collection process, I then preprocessed this data by converting it's color space.
 
 #### Data preprocess:
-* convert from BGR -> RGB <sup>[3.5]</sup>
+* convert from BGR -> RGB <sup>[3.5]</sup> `@model.py line 54`
 * corp (in Keras)
 * normalize (in Keras)
 
@@ -88,7 +88,7 @@ The image was cropped 66px from the top and 30px from the bottom to keep just th
 
 #### Training and validation sets
 * shuffle
-* 80/20 data split for training and validation sets `@model.py line 24`
+* 80/20 data split for training and validation sets `@model.py line 35`
 
 Finally, I randomly shuffled the data set and put 20% of the data into a validation set. 
 
@@ -98,14 +98,17 @@ The model was trained and validated on different data sets to ensure that the mo
 
 #### 5. Model parameter tuning
 
+Here are two examples of the parameters `@model.py line 12-22` that I tuned: 
+
 * filter depths: 9, 12, 16, 24, 36 in the convolutional layer, 9 performs the best
 * epochs: between 3 to 7, 5 is better in avarage
-* optimizer: adam, learning rate was not tuned manually `@model.py line 108` 
+
+I used adam optimizer `@model.py line 118`, so the learning rate was not tuned manually.
 
 
 ## Simulation Result
 
-In the simulation, the car is always driving autonomously on the road around track one up to 16mph. `video.mp4`
+In the simulation, the car is always driving autonomously on the road around track one up to 16mph for several laps. Please check `video.mp4` as reference. Note that in this project all data process and training pipeline are very specific to track one only. 
 
 
 ## Reference
